@@ -4,8 +4,9 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
         DOCKERHUB_USERNAME = 'ramdhanifauzi'
         IMAGE_NAME = 'wayshub-frontend'
-        APP_SERVER = '103.23.199.139'
+        APP_SERVER = '10.194.61.3'
         DISCORD_WEBHOOK = credentials('discord-webhook')
+        REACT_APP_BASEURL = credentials('react-app-baseurl-production')
     }
     stages {
         stage('Pull from GitHub') {
@@ -37,14 +38,10 @@ pipeline {
                 sshagent(['app-server-ssh-key']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no fauzi@${APP_SERVER} '
-                            docker pull ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:production &&
-                            docker stop wayshub-frontend-production || true &&
-                            docker rm wayshub-frontend-production || true &&
-                            docker run -d \
-                                --name wayshub-frontend-production \
-                                --restart always \
-                                -p 3000:3000 \
-                                ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:production
+                            cd ~/fe-production &&
+                            echo "REACT_APP_BASEURL=${REACT_APP_BASEURL}" > .env &&
+                            docker compose pull &&
+                            docker compose up -d
                         '
                     """
                 }
@@ -64,7 +61,7 @@ pipeline {
             discordSend(
                 webhookURL: "${DISCORD_WEBHOOK}",
                 title: "❌ Build FAILED - ${env.JOB_NAME}",
-                description: "Build #${env.BUILD_NUMBER} gagal deploy wayshub-frontend production!",
+                description: "Build #${env.BUILD_NUMBER} gagal deploy wayshub-backend production!",
                 result: currentBuild.currentResult
             )
         }
